@@ -2,46 +2,67 @@
 
 pragma solidity ^0.8.0;
 
+/**
+    @title Room Rental
+    @dev basically a decentralized version of airbnb
+ */
 contract RoomRental {
     enum Status { Vacant, Occupied }
-    Status currentStatus;
-    address payable public owner;
+    address private owner;
 
     struct Room { 
         Status status;
         uint256 cost;
-        uint256 exitDate;
     }
 
-    event Occupy(address _guest, Room room);
+    struct Rental { 
+        Room room;
+        uint256 checkout;
+    }
 
-    mapping(address => Room) rentals;
+    event Occupy(address _guest);
+    event StayFinished(address _guest);
 
-    constructor() public {
+    Room[] public rooms;
+    mapping(address => Rental) rentals; 
+
+    constructor()  {
+        rooms.push(Room(Status.Vacant, 1 ether));
+        rooms.push(Room(Status.Vacant, 3 ether));
+        rooms.push(Room(Status.Vacant, 5 ether));
+
         owner = msg.sender;
     }
 
-    function getRooms() public view returns(Room[]) {
-        return rentals;
+    function getAllRooms() public view returns(Room[] memory) {
+        return rooms;
     }
 
-    modifier roomIsVacant {
-        require(rentals[msg.sender].status == Status.Vacant, "room is currently occupied");
-        _;
-    }
 
-    modifier hasEnough {
-        require(rentals[msg.sender].cost >= msg.value, "Not enough to book room");
-        _;
-    }
 
-    receive() external payable roomAvailable hasEnough {
-        owner.transfer(msg.value);
-        rentals[msg.sender].status = Status.Occupied;
-        emit(Occupy(msg.sender, rentals[msg.sender]))
-    }
+    function bookRoom(uint256 _roomNum, uint256 _lenOfStay) external payable {
+        Room memory chosen = rooms[_roomNum];
+        address guest = msg.sender;
 
-    function leaveStay() public {
+        require(chosen.cost < 0, "that room doesnt exist");
+        require(chosen.status == Status.Vacant, "room is currently occupied");
+        require(chosen.cost >= msg.value, "Not enough to book room");
+
         
+        chosen.status = Status.Occupied;
+        rentals[guest] = Rental(chosen, block.timestamp + _lenOfStay);
+    
+        emit Occupy(guest);
+    }
+
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+
+    function checkout() public {
+        if(block.timestamp >= rentals[msg.sender].checkout) {
+            rentals[msg.sender].room.status = Status.Vacant;
+            emit StayFinished(msg.sender);
+        }
     }
 }
