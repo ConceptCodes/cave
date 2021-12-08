@@ -17,34 +17,25 @@ contract RoomRental {
 
     struct Rental { 
         Room room;
-        uint256 checkout;
+        uint256 departure;
+        bool checkout;
     }
 
     event Occupy(address _guest);
     event StayFinished(address _guest);
 
-    Room[] public rooms;
-    mapping(address => Rental) rentals; 
+    Room public currentRoom;
+    mapping(address => Rental) public rentals; 
 
-    constructor()  {
-        rooms.push(Room(Status.Vacant, 1 ether));
-        rooms.push(Room(Status.Vacant, 3 ether));
-        rooms.push(Room(Status.Vacant, 5 ether));
-
+    constructor(uint256 _cost, uint256 checkoutDate) {
         owner = msg.sender;
+        currentRoom = Room(Status.Vacant, _cost);
     }
-
-    function getAllRooms() public view returns(Room[] memory) {
-        return rooms;
-    }
-
-
 
     function bookRoom(uint256 _roomNum, uint256 _lenOfStay) external payable {
-        Room memory chosen = rooms[_roomNum];
         address guest = msg.sender;
-
-        require(chosen.cost < 0, "that room doesnt exist");
+        Room memory chosen = rentals[msg.sender].room;
+        
         require(chosen.status == Status.Vacant, "room is currently occupied");
         require(chosen.cost >= msg.value, "Not enough to book room");
 
